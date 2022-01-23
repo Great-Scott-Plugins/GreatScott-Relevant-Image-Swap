@@ -4,8 +4,50 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "af25f42a7f171defab4eb1d46ecdec57",
-    "packages": [],
+    "content-hash": "6e0ae389fda92fc3b059a161ceda1184",
+    "packages": [
+        {
+            "name": "great-scott-plugins/wordpress-plugin",
+            "version": "1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Great-Scott-Plugins/WordPress-Plugin.git",
+                "reference": "1f93c6726cb785ce5266225710d136af71e31100"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Great-Scott-Plugins/WordPress-Plugin/zipball/1f93c6726cb785ce5266225710d136af71e31100",
+                "reference": "1f93c6726cb785ce5266225710d136af71e31100",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.6.20"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "GreatScottPlugins\\WordPressPlugin\\": "src/"
+                }
+            },
+            "license": [
+                "GPL-3.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Great Scott Plugins",
+                    "email": "scotts@greatscottplugins.com",
+                    "homepage": "https://greatscottplugins.com/",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Library to use as basis for WordPress plugins.",
+            "support": {
+                "source": "https://github.com/Great-Scott-Plugins/WordPress-Plugin/tree/1.0.1",
+                "issues": "https://github.com/Great-Scott-Plugins/WordPress-Plugin/issues"
+            },
+            "time": "2022-01-22T23:49:48+00:00"
+        }
+    ],
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
@@ -13,7 +55,7 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=5.6.20"
+        "php": ">=7.3.5"
     },
     "platform-dev": []
 }
