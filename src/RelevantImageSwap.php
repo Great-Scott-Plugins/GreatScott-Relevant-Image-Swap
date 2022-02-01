@@ -26,10 +26,12 @@ class RelevantImageSwap extends Plugin
      *
      * @filter content_save_pre
      *
-     * @param string $content
+     * @param string|array $content
      */
-    public function grabImages(string $content): string
+    public function grabImages($content)
     {
+        global $post;
+
         // parse_blocks() need " to parse $blocks[]['attr'] correctly.
         $post_data = str_replace('\\"', '"', $content);
         $blocks    = parse_blocks($post_data);
@@ -37,75 +39,49 @@ class RelevantImageSwap extends Plugin
         // If no blocks exist ignore.
         if (false === empty($blocks)) {
             foreach ($blocks as $index => $block) {
-                // Look for first level image blocks.
-                if ('core/image' === $block['blockName']) {
-                    $image_html = $block['innerHTML'];
+                $image_html = $this->findImage($block);
 
+                if ('' !== $image_html) {
                     // Convert image html to manipulate attributes.
                     $dom = new \DOMDocument('1.0', 'UTF-8');
                     @$dom->loadHTML($image_html);
                     $dom->preserveWhiteSpace = false;
                     $image                   = $dom->getElementsByTagName('img');
 
-                    // If no image found go to next block.
-                    if (false === isset($image[0])) {
-                        continue;
-                    }
-
                     // Get image alt or title for relevant query.
                     $image_alt = $image[0]->getAttribute('alt');
                     $image_alt = $image_alt ?? $image[0]->getAttribute('title');
+                    $photo     = false === empty($image_alt) ? self::getSwappedPhoto($image_alt) : '';
 
-                    if (empty($image_alt)) {
-                        continue;
-                    }
+                    if (false === empty($photo)) {
+                        // Update image src if available.
+                        $image[0]->setAttribute('src', $photo);
 
-                    // Only grab a new images from api if not already from relevant image source.
-                    if (false === stripos('pixabay', $image[0]->getAttribute('src'))) {
-                        $image_alt      = str_word_count($image_alt) > 2 ? wp_trim_words($image_alt, 2) : $image_alt;
-                        $image_alt      = str_replace([' ', '-'], ['+', '+'], $image_alt);
-                        $response       = wp_remote_get(
-                            "https://pixabay.com/api/?" .
-                            "key=25377138-b2433b469a1712316da4ba2f5" .
-                            "&q={$image_alt}"
+                        // Remove extra tags from domdoc save.
+                        $final_image = str_replace(
+                            [
+                                '<body>',
+                                '</body>',
+                                '<html>',
+                                '</html>',
+                                '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">',
+                            ],
+                            ['', '', '', '', ''],
+                            $dom->saveHTML()
                         );
-                        $photo_response = json_decode(wp_remote_retrieve_body($response), true);
 
-                        // If images exist for query replace current src with new license free version.
-                        if (isset($photo_response['hits']) && is_array($photo_response)) {
-                            $photo = $photo_response['hits'][0]['largeImageURL'] ?? '';
-
-                            // Update image src if available.
-                            if (false === empty($photo)) {
-                                $image[0]->setAttribute('src', $photo);
-                            }
-
-                            // Remove extra tags from domdoc save.
-                            $final_image = str_replace(
-                                [
-                                    '<body>',
-                                    '</body>',
-                                    '<html>',
-                                    '</html>',
-                                    '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">',
-                                ],
-                                ['', '', '', '', ''],
-                                $dom->saveHTML()
-                            );
-
-                            // Refill the block HTML and inner Content with new image code.
-                            $block['innerHTML']    = $final_image;
-                            $block['innerContent'] = [$final_image];
-                            $blocks[$index]        = $block;
-                        }
+                        // Refill the block HTML and inner Content with new image code.
+                        $block['innerHTML']    = $final_image;
+                        $block['innerContent'] = [$final_image];
+                        $blocks[$index]        = $block;
                     }
-                }
-            }
 
-            // Fix block code.
-            $post_content = implode('', array_map([$this, 'serializeBlock2'], $blocks));
-            $content      = str_replace('"', '\\"', $post_content); // Undo " correction from above.
-        }
+                    // Fix block code.
+                    $post_content = implode('', array_map([$this, 'serializeBlock2'], $blocks));
+                    $content      = str_replace('"', '\\"', $post_content); // Undo " correction from above.
+                } // End if().
+            } // End foreach().
+        } // End if().
 
         return $content;
     }
@@ -189,5 +165,42 @@ class RelevantImageSwap extends Plugin
 
         // Regex: /\\"/.
         return preg_replace('/\\\\"/', '\\u0022', $encoded_attributes);
+    }
+
+    /**
+     * @param string $image_alt
+     */
+    public static function getSwappedPhoto($image_alt)
+    {
+        $photo = '';
+
+        // Only grab a new images from api if not already from relevant image source.
+        $image_alt      = str_word_count($image_alt) > 2 ? wp_trim_words($image_alt, 2) : $image_alt;
+        $image_alt      = str_replace([' ', '-'], ['+', '+'], $image_alt);
+        $response       = wp_remote_get(
+            "https://pixabay.com/api/?" .
+            "key=25377138-b2433b469a1712316da4ba2f5" .
+            "&q={$image_alt}"
+        );
+        $photo_response = json_decode(wp_remote_retrieve_body($response), true);
+
+        // If images exist for query replace current src with new license free version.
+        if (isset($photo_response['hits']) && is_array($photo_response)) {
+            $photo = $photo_response['hits'][0]['largeImageURL'] ?? '';
+        }
+
+        return $photo;
+    }
+
+    public function findImage($block)
+    {
+        // Look for first level image blocks.
+        if (false === empty($block['innerBlocks'][0])) {
+            return $this->findImage($block['innerBlocks'][0]);
+        } elseif (false === is_null($block['blockName']) && 'core/image' === $block['blockName']) {
+            return $block['innerHTML'];
+        }
+
+        return '';
     }
 }
