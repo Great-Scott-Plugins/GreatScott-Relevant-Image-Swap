@@ -203,4 +203,52 @@ class RelevantImageSwap extends Plugin
 
         return '';
     }
+
+    /**
+     * Change upload dir.
+     *
+     * @filter post_thumbnail_html
+     * @param $html
+     */
+    public function updateUploadDir($html, $postid, $attachmentid, $size)
+    {
+        $src = wp_get_attachment_image_src($attachmentid, $size);
+
+        if (isset($src[0]) && false !== stripos($src[0], 'pixabay')) {
+            $upload_path = wp_get_upload_dir();
+            $class       = $attr['class'] ?? '';
+            $alt         = get_the_title($postid);
+
+            $new_path = str_replace([$upload_path['baseurl'], '/https'], ['', 'https'], $src[0]);
+
+            // Check to see if a 'retina' class exists in the array when calling "the_post_thumbnail()", if so output different <img/> html
+            if (false !== strpos($class, 'retina')) {
+                $html = '<img src="" alt="" data-src="' . $new_path . '" data-alt="' . $alt . '" class="' . $class . '" />';
+            } else {
+                $html = '<img src="' . $new_path . '" alt="' . $alt . '" class="' . $class . '" />';
+            }
+        }
+
+        return $html;
+    }
+
+    /**
+     * Swap attachurl.
+     *
+     * @action save_post
+     */
+    public function swapFeature($postid)
+    {
+        $feature_id = get_post_thumbnail_id($postid) ?? '';
+
+        if ('' !== $feature_id) {
+            $alt = get_post_meta ($feature_id, '_wp_attachment_image_alt', true);
+
+            if (false === empty($alt)) {
+                $new_url = self::getSwappedPhoto($alt);
+
+                update_attached_file($feature_id, $new_url);
+            }
+        }
+    }
 }
