@@ -38,49 +38,11 @@ class RelevantImageSwap extends Plugin
 
         // If no blocks exist ignore.
         if (false === empty($blocks)) {
-            foreach ($blocks as $index => $block) {
-                $image_html = $this->findImage($block);
+            $blocks = $this->findImage($blocks);
 
-                if ('' !== $image_html) {
-                    // Convert image html to manipulate attributes.
-                    $dom = new \DOMDocument('1.0', 'UTF-8');
-                    @$dom->loadHTML($image_html);
-                    $dom->preserveWhiteSpace = false;
-                    $image                   = $dom->getElementsByTagName('img');
-
-                    // Get image alt or title for relevant query.
-                    $image_alt = $image[0]->getAttribute('alt');
-                    $image_alt = $image_alt ?? $image[0]->getAttribute('title');
-                    $photo     = false === empty($image_alt) ? self::getSwappedPhoto($image_alt) : '';
-
-                    if (false === empty($photo)) {
-                        // Update image src if available.
-                        $image[0]->setAttribute('src', $photo);
-
-                        // Remove extra tags from domdoc save.
-                        $final_image = str_replace(
-                            [
-                                '<body>',
-                                '</body>',
-                                '<html>',
-                                '</html>',
-                                '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">',
-                            ],
-                            ['', '', '', '', ''],
-                            $dom->saveHTML()
-                        );
-
-                        // Refill the block HTML and inner Content with new image code.
-                        $block['innerHTML']    = $final_image;
-                        $block['innerContent'] = [$final_image];
-                        $blocks[$index]        = $block;
-                    }
-
-                    // Fix block code.
-                    $post_content = implode('', array_map([$this, 'serializeBlock2'], $blocks));
-                    $content      = str_replace('"', '\\"', $post_content); // Undo " correction from above.
-                } // End if().
-            } // End foreach().
+            // Fix block code.
+            $post_content = implode('', array_map([$this, 'serializeBlock2'], $blocks));
+            $content      = str_replace('"', '\\"', $post_content); // Undo " correction from above.
         } // End if().
 
         return $content;
@@ -192,16 +154,57 @@ class RelevantImageSwap extends Plugin
         return $photo;
     }
 
-    public function findImage($block)
+    /**
+     * Find image block within parsed blocks.
+     *
+     * @param $block
+     *
+     */
+    public function findImage($blocks)
     {
-        // Look for first level image blocks.
-        if (false === empty($block['innerBlocks'][0])) {
-            return $this->findImage($block['innerBlocks'][0]);
-        } elseif (false === is_null($block['blockName']) && 'core/image' === $block['blockName']) {
-            return $block['innerHTML'];
+        foreach($blocks as $index => $block) {
+            // Look for first level image blocks.
+            if (false === empty($block['innerBlocks']) && is_array($block['innerBlocks'])) {
+                return $this->findImage($block['innerBlocks']);
+            } elseif (false === is_null($block['blockName']) && 'core/image' === $block['blockName']) {
+                $image_html = $block['innerHTML'];
+
+                // Convert image html to manipulate attributes.
+                $dom = new \DOMDocument('1.0', 'UTF-8');
+                @$dom->loadHTML($image_html);
+                $dom->preserveWhiteSpace = false;
+                $image                   = $dom->getElementsByTagName('img');
+
+                // Get image alt or title for relevant query.
+                $image_alt = $image[0]->getAttribute('alt');
+                $image_alt = $image_alt ?? $image[0]->getAttribute('title');
+                $photo     = false === empty($image_alt) ? self::getSwappedPhoto($image_alt) : '';
+
+                if (false === empty($photo)) {
+                    // Update image src if available.
+                    $image[0]->setAttribute('src', $photo);
+
+                    // Remove extra tags from domdoc save.
+                    $final_image = str_replace(
+                        [
+                            '<body>',
+                            '</body>',
+                            '<html>',
+                            '</html>',
+                            '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">',
+                        ],
+                        ['', '', '', '', ''],
+                        $dom->saveHTML()
+                    );
+
+                    // Refill the block HTML and inner Content with new image code.
+                    $blocks[$index]['innerHTML']    = $final_image;
+                    $blocks[$index]['innerContent'] = [$final_image];
+                }
+            }
         }
 
-        return '';
+        return $blocks;
     }
 
     /**
