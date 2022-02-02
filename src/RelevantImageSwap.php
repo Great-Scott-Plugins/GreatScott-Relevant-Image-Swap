@@ -142,13 +142,20 @@ class RelevantImageSwap extends Plugin
         $response       = wp_remote_get(
             "https://pixabay.com/api/?" .
             "key=25377138-b2433b469a1712316da4ba2f5" .
-            "&q={$image_alt}"
+            "&q={$image_alt}" .
+            "&image_type=photo" .
+            "&orientation=horizontal" .
+            "&safesearch=true"
         );
         $photo_response = json_decode(wp_remote_retrieve_body($response), true);
 
         // If images exist for query replace current src with new license free version.
         if (isset($photo_response['hits']) && is_array($photo_response)) {
-            $photo = $photo_response['hits'][0]['largeImageURL'] ?? '';
+            $max = count($photo_response['hits']);
+
+            $index = rand(1, $max) - 1;
+
+            $photo = $photo_response['hits'][$index]['largeImageURL'] ?? '';
         }
 
         return $photo;
@@ -159,14 +166,15 @@ class RelevantImageSwap extends Plugin
      *
      * @param $block
      *
+     * @return array
      */
     public function findImage($blocks)
     {
         foreach($blocks as $index => $block) {
             // Look for first level image blocks.
             if (false === empty($block['innerBlocks']) && is_array($block['innerBlocks'])) {
-                return $this->findImage($block['innerBlocks']);
-            } elseif (false === is_null($block['blockName']) && 'core/image' === $block['blockName']) {
+                $blocks[$index]['innerBlocks'] = $this->findImage($block['innerBlocks']);
+            } elseif ('core/image' === $block['blockName']) {
                 $image_html = $block['innerHTML'];
 
                 // Convert image html to manipulate attributes.
