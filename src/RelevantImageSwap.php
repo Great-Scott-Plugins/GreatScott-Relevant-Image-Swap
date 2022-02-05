@@ -253,7 +253,7 @@ class RelevantImageSwap extends Plugin
         $feature_id = get_post_thumbnail_id($postid) ?? '';
 
         if ('' !== $feature_id) {
-            $alt = get_post_meta ($feature_id, '_wp_attachment_image_alt', true);
+            $alt = get_post_meta($feature_id, '_wp_attachment_image_alt', true);
 
             if (false === empty($alt)) {
                 $new_url = self::getSwappedPhoto($alt);
